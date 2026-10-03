@@ -1,0 +1,39 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "pettrack-91b50",
+          "appId": "1:999466196022:android:36d203e65905b4c38acc97",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "pettrack-91b50",
+          "configurations": {
+            "android": "1:999466196022:android:36d203e65905b4c38acc97",
+            "ios": "1:999466196022:ios:d2627dd090c134a88acc97",
+            "macos": "1:999466196022:ios:d2627dd090c134a88acc97",
+            "web": "1:999466196022:web:0349e1a1f461b1e68acc97",
+            "windows": "1:999466196022:web:220193aa73d891298acc97"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "venv",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "runtime": "python313"
+    }
+  ]
+}
