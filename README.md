@@ -121,11 +121,12 @@ cancellation/permission edge cases and unbounded reset-function batching.
 
 ## Assets and privacy
 
-See [the asset inventory](ASSETS.md) for classifications and pending artwork rights.
+See [the asset inventory](ASSETS.md) for provenance and publication decisions.
 The example photograph, logo banner and screenshot composite are excluded from the
 working tree and preserved privately. Their historical Git copies still exist.
-Retained custom illustrations/launcher artwork require authorship or reuse confirmation
-before publication. No pet records, uploaded photos, route exports, real `.env`,
+The retained custom illustrations and Android/iOS launcher derivatives are team-authored
+PetTrack artwork approved for public redistribution. No pet records, uploaded photos,
+route exports, real `.env`,
 service accounts or keystore are intentionally distributed in the current tree.
 
 ## Contributors
@@ -136,8 +137,12 @@ service accounts or keystore are intentionally distributed in the current tree.
 
 ## License and publication status
 
-No project source license has been selected. Team consent and applicable rights
-must be confirmed before selecting one; dependency/framework assets remain subject
-to their [upstream terms](THIRD_PARTY_NOTICES.md). Publication is pending retained-artwork clearance and
-remediation of the original commit's student identifiers and excluded media. Working
-tree cleanup does not erase Git history.
+Team-authored PetTrack code and material are licensed under the [MIT License](LICENSE).
+The user has confirmed authorization to publish the team's project and retained custom
+artwork. Flutter/template material and dependencies retain their separate
+[upstream terms](THIRD_PARTY_NOTICES.md).
+
+Git history is retained by explicit user decision. Earlier commits still contain
+historical identifiers and excluded media and may become accessible on publication.
+The current tree presents a historical academic artifact with the runtime limitations
+described above.

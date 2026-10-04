@@ -6,8 +6,11 @@ The Flutter platform scaffolding and default template artwork originate from
 
 The upstream Flutter copyright/license notice is preserved in
 [FLUTTER_TEMPLATE_LICENSE.txt](FLUTTER_TEMPLATE_LICENSE.txt). This applies to
-upstream material and does not select a license for the team's PetTrack source
-or clear the custom illustrations described in [ASSETS.md](ASSETS.md).
+upstream Flutter/template material under BSD-3-Clause and remains separate from
+the root [MIT License](LICENSE), which covers team-authored PetTrack code and
+material the team is entitled to license. The retained custom illustrations and
+launcher derivatives are confirmed team artwork; see [ASSETS.md](ASSETS.md).
+The project MIT license does not relicense upstream material or dependencies.
 
 Default web favicon/192/512 icons and iOS launch placeholders were matched byte
 for byte with official upstream assets. Other default Flutter icons were identified
