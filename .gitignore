@@ -1,107 +1,77 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
+# Editor and operating-system state
 .DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
-
-# IntelliJ related
+.idea/
+.vscode/
 *.iml
 *.ipr
 *.iws
-.idea/
+*.swp
+*.tmp
+.history/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# Flutter/Dart generated state; pubspec.lock is versioned for this application.
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
-
-# Symbolication related
+**/doc/api/
+**/Flutter/ephemeral/
+**/ios/Flutter/.last_build_id
 app.*.symbols
-
-# Obfuscation related
 app.*.map.json
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+**/generated_plugin_registrant.cc
+**/generated_plugin_registrant.h
+**/generated_plugins.cmake
+**/GeneratedPluginRegistrant.swift
+**/Pods/
+**/xcuserdata/
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-
+# Python and Firebase local state
+__pycache__/
+*.py[cod]
+.venv/
+venv/
 .firebase/
-firebase-debug.log
-*.key.json
-*.secret.*
+*.log
+*.class
+
+# Local service configuration and credentials
+.env
+.env.*
 *.env
 *.env.*
-
-# Firebase configuration files
+!.env.example
+*.key.json
+*.secret.*
+*service-account*.json
+*service_account*.json
 google-services.json
 firebase_options.dart
-**/GoogleService-Info.plist
-ios/Runner/GoogleService-Info.plist
-macos/Runner/GoogleService-Info.plist
-ios/firebase_app_id_file.json
-macos/firebase_app_id_file.json
-
-# Gradle files
-**/android/**/gradle.properties
-**/android/key.properties
-**/android/**/*.keystore
-**/android/**/*.jks
-**/android/.gradle/
-**/android/local.properties
-
-# iOS & Mac signing
-**/*.mobileprovision
-**/*.cer
-**/*.certSigningRequest
-**/*.p12
-**/ios/Flutter/.last_build_id
-
-# Keystore files
-**/KeyStore/
+GoogleService-Info.plist
+firebase_app_id_file.json
+key.properties
 *.keystore
 *.jks
 *.key
+*.pem
+*.p12
+*.pfx
 *.pepk
+*.mobileprovision
+*.cer
+*.certSigningRequest
+KeyStore/
 
-*.log
-*.tmp
+# Local SDK paths and Gradle caches; android/gradle.properties is project configuration.
+/android/.gradle/
+/android/local.properties
 
-# macOS
-**/Flutter/ephemeral/
-**/Pods/
-**/macos/Flutter/GeneratedPluginRegistrant.swift
-**/macos/Flutter/ephemeral
-**/xcuserdata/
-
-# Windows
-**/windows/flutter/generated_plugin_registrant.cc
-**/windows/flutter/generated_plugin_registrant.h
-**/windows/flutter/generated_plugins.cmake
-
-# Linux
-**/linux/flutter/generated_plugin_registrant.cc
-**/linux/flutter/generated_plugin_registrant.h
-**/linux/flutter/generated_plugins.cmake
-
-
-key.properties
-android/key.properties
+# Excluded historical presentation media must not be reintroduced accidentally.
+/assets/images/example.jpg
+/assets/images/screenshots.png
+/assets/images/logo.png

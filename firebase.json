@@ -24,7 +24,7 @@
   },
   "functions": [
     {
-      "source": "functions",
+      "source": "CloudFunctions/reset-feed",
       "codebase": "default",
       "ignore": [
         "venv",

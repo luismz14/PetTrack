@@ -2,13 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:pet_track/components/pet_card.dart';
 import 'package:pet_track/core/app_colors.dart';
 import 'package:pet_track/core/app_styles.dart';
+import 'package:pet_track/models/pets_db.dart';
 import 'package:pet_track/screens/add_edit_pet_screen.dart';
 import 'package:pet_track/screens/pet_details_screen.dart';
-import 'package:pet_track/models/pets_db.dart';
-
-// Pantalla que llista totes les mascotes de l’usuari. Carrega les dades amb
-// getPets(), mostra cada mascota en un PetCard, permet actualitzar la llista
-// amb un estirament (RefreshIndicator) i inclou un FAB per afegir-ne de noves.
 
 class PetListScreen extends StatefulWidget {
   const PetListScreen({super.key});
@@ -26,8 +22,8 @@ class _PetListScreenState extends State<PetListScreen> {
     _petsFuture = getPets();
   }
 
-  // Torna a cridar getPets() i fa setState per refrescar la llista.
   Future<void> _refreshPets() async {
+    if (!mounted) return;
     setState(() {
       _petsFuture = getPets();
     });
@@ -45,7 +41,7 @@ class _PetListScreenState extends State<PetListScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return const Center(child: Text('Could not load pets.'));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return Center(
               child: Column(
@@ -53,12 +49,12 @@ class _PetListScreenState extends State<PetListScreen> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(
-                    'Encara no tens mascotes',
+                    'You have no pets yet',
                     textAlign: TextAlign.center,
                     style: AppTextStyles.bigText(context),
                   ),
                   Text(
-                    'Prova d\'afegir-ne una prement "+"',
+                    'Add a pet by pressing "+"',
                     textAlign: TextAlign.center,
                     style: AppTextStyles.midText(context),
                   ),
@@ -80,7 +76,7 @@ class _PetListScreenState extends State<PetListScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 8, left: 16, right: 16),
                     child: Text(
-                      'Les meves mascotes',
+                      'My pets',
                       style: AppTextStyles.titleText(context),
                     ),
                   ),

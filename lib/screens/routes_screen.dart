@@ -1,17 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:pet_track/core/app_colors.dart';
 import 'package:pet_track/core/app_styles.dart';
 import 'package:pet_track/models/pets_db.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:pet_track/screens/tracking_screen.dart';
-
-// Pantalla de selecció i enregistrament de rutes amb mascotes. Permet
-// triar quines mascotes participen, centra el mapa a la ubicació de
-// l’usuari, inicia el seguiment (TrackingScreen) i desa a Firestore els
-// detalls de la ruta (temps, distància, traçat) per a cada mascota.
 
 class RoutesWithPetsScreen extends StatefulWidget {
   const RoutesWithPetsScreen({super.key});
@@ -35,7 +31,6 @@ class _RoutesWithPetsScreenState extends State<RoutesWithPetsScreen> {
     });
   }
 
-  // Afegeix o elimina la mascota amb ID [id] del conjunt _selectedIds.
   void _togglePet(String id) {
     setState(() {
       if (_selectedIds.contains(id)) {
@@ -46,8 +41,6 @@ class _RoutesWithPetsScreenState extends State<RoutesWithPetsScreen> {
     });
   }
 
-  // Si totes les mascotes estan seleccionades les desmarca; en cas contrari,
-  // selecciona-les totes. Utilitza _selectedIds i la llista [pets].
   void _toggleAll(List<Map<String, dynamic>> pets) {
     setState(() {
       if (_selectedIds.length == pets.length) {
@@ -60,9 +53,8 @@ class _RoutesWithPetsScreenState extends State<RoutesWithPetsScreen> {
     });
   }
 
-  // Demana permisos de localització, obté la posició actual i anima la
-  // càmera del GoogleMap perquè se centri a l’usuari.
   Future<void> _centerMapOnUser() async {
+    if (!mounted) return;
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) return;
@@ -77,10 +69,17 @@ class _RoutesWithPetsScreenState extends State<RoutesWithPetsScreen> {
       final position = await Geolocator.getCurrentPosition();
       final latLng = LatLng(position.latitude, position.longitude);
 
+      if (!mounted) return;
       _mapController?.animateCamera(CameraUpdate.newLatLng(latLng));
-    } catch (e) {
-      debugPrint('Error centrant la ubicació: $e');
+    } catch (_) {
+      if (kDebugMode) debugPrint('Could not center the map on the current location.');
     }
+  }
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
   }
 
   @override
@@ -104,7 +103,7 @@ class _RoutesWithPetsScreenState extends State<RoutesWithPetsScreen> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Rutes amb mascotes',
+                    'Pet walks',
                     style: AppTextStyles.titleText(context),
                   ),
                 ),
@@ -115,7 +114,7 @@ class _RoutesWithPetsScreenState extends State<RoutesWithPetsScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Tria acompanyants:',
+                        'Choose companions:',
                         style: AppTextStyles.midText(
                           context,
                         ).copyWith(fontSize: size.width * 0.045),
@@ -137,7 +136,7 @@ class _RoutesWithPetsScreenState extends State<RoutesWithPetsScreen> {
                         ),
                       ),
                       child: Text(
-                        allSelected ? 'Descarta tots' : 'Selecciona tots',
+                        allSelected ? 'Deselect all' : 'Select all',
                         style: AppTextStyles.midText(
                           context,
                         ).copyWith(color: allSelected ? Colors.white : null),
@@ -282,9 +281,7 @@ class _RoutesWithPetsScreenState extends State<RoutesWithPetsScreen> {
                                                 ),
                                           ),
                                         );
-                                        print(
-                                          'Result from TrackingScreen: $result',
-                                        );
+                                        if (kDebugMode) debugPrint('Walk tracking completed.');
                                         if (result != null && result is Map) {
                                           for (final petId
                                               in result['petIds']) {
@@ -313,7 +310,7 @@ class _RoutesWithPetsScreenState extends State<RoutesWithPetsScreen> {
                                       },
                               child: Center(
                                 child: Text(
-                                  'Iniciar ruta (${_selectedIds.length})',
+                                  'Start walk (${_selectedIds.length})',
                                   style: AppTextStyles.bigText(
                                     context,
                                   ).copyWith(color: Colors.white),

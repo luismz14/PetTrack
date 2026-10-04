@@ -1,10 +1,8 @@
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pet_track/core/app_colors.dart';
-
-// Aquest fitxer conté el widget del botó d'alimentació, que permet registrar una
-// nova ració de menjar per a la mascota de manera visual i interactiva.
 
 class FeedButton extends StatefulWidget {
   final double size;
@@ -51,6 +49,7 @@ class _FeedButtonState extends State<FeedButton> {
     }
   }
 
+  // Historical display threshold; it does not reset the daily feeding count.
   bool get _isBowlEmpty => DateTime.now().difference(_lastFed).inMinutes >= 10;
 
   @override

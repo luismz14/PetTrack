@@ -1,11 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 
-// Aquest fitxer implementa la pantalla de mapa que registra en temps real la ruta de passeig de la mascota,
-// dibuixant els punts recollits i la posició actual sobre Google Maps. Gestiona la subscripció al GPS,
-// la càmera del mapa i la visualització del traçat.
-
+/// Legacy map prototype; the home navigation uses TrackingScreen instead.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
   @override
@@ -16,11 +15,13 @@ class MapScreenState extends State<MapScreen> {
   GoogleMapController? mapController;
   Location location = Location();
   List<LatLng> route = [];
+  StreamSubscription<LocationData>? _locationSubscription;
 
   @override
   void initState() {
     super.initState();
-    location.onLocationChanged.listen((loc) {
+    _locationSubscription = location.onLocationChanged.listen((loc) {
+      if (!mounted) return;
       final position = LatLng(loc.latitude!, loc.longitude!);
       setState(() {
         route.add(position);
@@ -30,9 +31,16 @@ class MapScreenState extends State<MapScreen> {
   }
 
   @override
+  void dispose() {
+    _locationSubscription?.cancel();
+    mapController?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Passeig')),
+      appBar: AppBar(title: Text('Walk')),
       body: GoogleMap(
         initialCameraPosition: CameraPosition(target: LatLng(0, 0), zoom: 15),
         onMapCreated: (controller) => mapController = controller,

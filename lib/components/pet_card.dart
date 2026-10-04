@@ -1,13 +1,11 @@
+import 'dart:math';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:pet_track/components/feed_button.dart';
 import 'package:pet_track/core/app_colors.dart';
 import 'package:pet_track/core/app_styles.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:math';
-
-// Aquest fitxer defineix el widget de targeta de mascota (PetCard). Mostra una imatge, dades bàsiques (nom, raça, edat, sexe)
-// i incorpora el botó FeedButton per registrar racions de menjar i l’última hora d’alimentació.
 
 class PetCard extends StatefulWidget {
   final Map<String, dynamic> petData;
@@ -22,9 +20,9 @@ class _PetCardState extends State<PetCard> {
   @override
   Widget build(BuildContext context) {
     final pet = widget.petData;
-    final name = pet['name'] ?? 'Sense nom';
-    final species = pet['species'] ?? 'Espècie desconeguda';
-    final breed = pet['breed'] ?? 'Raça desconeguda';
+    final name = pet['name'] ?? 'Unnamed';
+    final species = pet['species'] ?? 'Unknown species';
+    final breed = pet['breed'] ?? 'Unknown breed';
     final birthDate =
         pet['birthDate'] is Timestamp
             ? (pet['birthDate'] as Timestamp).toDate()
@@ -36,10 +34,10 @@ class _PetCardState extends State<PetCard> {
               final days = now.difference(birthDate).inDays;
               final months = (days / 30).floor();
               return days < 30
-                  ? '$days dies'
+                  ? '$days days'
                   : months < 12
-                  ? '$months mesos'
-                  : '${(months / 12).floor()} anys';
+                  ? '$months months'
+                  : '${(months / 12).floor()} years';
             }()
             : '';
     final petId = pet['id'];
@@ -55,8 +53,6 @@ class _PetCardState extends State<PetCard> {
         imageUrl != null && imageUrl.isNotEmpty
             ? NetworkImage(imageUrl)
             : AssetImage('assets/images/$species.png');
-
-    // Actualitza a Firestore el recompte diari i, si cal, la data "lastFed" de la mascota.
     void updateLastFed(bool add) {
       dailyFeedCount =
           add

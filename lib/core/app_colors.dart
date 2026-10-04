@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-// Aquest fitxer conté la definició de la paleta de colors utilitzada a l'aplicació,
-// incloent colors base, de fons i degradats.
-
 class AppColors {
   static const Color black = Colors.black;
   static const Color grey = Color(0xFF3E3E3E);

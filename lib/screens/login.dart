@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:pet_track/components/google_auth.dart';
 import 'package:pet_track/core/app_colors.dart';
 import 'package:pet_track/core/app_styles.dart';
 import 'package:pet_track/screens/home_screen.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:pet_track/services/fcm_service.dart';
-
-// Pantalla d’inici de sessió de PetTrack. Mostra un missatge de benvinguda
-// i un botó “Iniciar sessió amb Google” que autentica l’usuari, registra
-// el dispositiu a FCM, carrega les mascotes des del backend i redirigeix
-// automàticament cap a la HomeScreen un cop completat el procés.
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -27,7 +22,7 @@ class LoginScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Text(
-              'Benvingut/da a PetTrack!',
+              'Welcome to PetTrack!',
               style: AppTextStyles.bigText(context),
             ),
             const SizedBox(height: 20),
@@ -48,7 +43,7 @@ class LoginScreen extends StatelessWidget {
                       final auth = await account.authentication;
                       final googleIdToken = auth.idToken;
                       if (googleIdToken == null) {
-                        throw Exception('No se obtuvo ID token de Google');
+                        throw Exception('Could not obtain the Google ID token');
                       }
 
                       final firebaseIdToken =
@@ -56,18 +51,10 @@ class LoginScreen extends StatelessWidget {
 
                       await FCMService.instance.initForCurrentUser();
 
-                      final response = await callCloudFunction(
+                      await callCloudFunction(
                         functionName: 'get_pets',
                         firebaseIdToken: firebaseIdToken,
                       );
-                      if (response != null && response.statusCode == 200) {
-                        print('Mascotes: ${response.body}');
-                      } else {
-                        print(
-                          'Error carregant mascotes: '
-                          '${response?.statusCode} ${response?.body}',
-                        );
-                      }
 
                       if (context.mounted) {
                         Navigator.pushReplacement(
@@ -75,14 +62,17 @@ class LoginScreen extends StatelessWidget {
                           MaterialPageRoute(builder: (_) => const HomeScreen()),
                         );
                       }
-                    } catch (e) {
+                    } catch (_) {
                       if (context.mounted) {
                         showDialog(
                           context: context,
                           builder:
                               (_) => AlertDialog(
-                                title: const Text('Error al iniciar sessió'),
-                                content: Text('Ha hagut un problema: $e'),
+                                title: const Text('Sign-in failed'),
+                                content: const Text(
+                                  'Sign-in could not be completed. '
+                                  'Check your local service configuration.',
+                                ),
                                 actions: <Widget>[
                                   TextButton(
                                     child: const Text('Ok'),
@@ -110,7 +100,7 @@ class LoginScreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          'Iniciar sessió amb Google',
+                          'Sign in with Google',
                           style: AppTextStyles.midText(
                             context,
                           ).copyWith(color: Colors.white),

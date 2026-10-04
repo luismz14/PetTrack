@@ -1,24 +1,20 @@
 import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:googleapis/calendar/v3.dart' as gcal;
+import 'package:googleapis_auth/auth_io.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:pet_track/components/app_bar.dart';
 import 'package:pet_track/components/feed_button.dart';
+import 'package:pet_track/components/google_auth.dart';
 import 'package:pet_track/core/app_colors.dart';
 import 'package:pet_track/core/app_styles.dart';
 import 'package:pet_track/screens/add_edit_pet_screen.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:pet_track/components/google_auth.dart';
 import 'package:pet_track/services/calendar_service.dart';
-import 'package:googleapis/calendar/v3.dart' as gcal;
-import 'package:googleapis_auth/auth_io.dart';
-
-// Pantalla de detalls d’una mascota. Mostra la foto, dades bàsiques, característiques
-// generades amb Gemini, recompte d’àpats del dia, últim passeig i el proper
-// esdeveniment del calendari PetTrack. Inclou botó per alimentar, accés a l’edició
-// i sincronitza la informació amb Firestore i Google Calendar.
 
 class PetDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> petData;
@@ -55,7 +51,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
         pet['lastFed'] is Timestamp
             ? (pet['lastFed'] as Timestamp).toDate()
             : DateTime(2025, 1, 1);
-    _caracteristiques = 'Carregant...';
+    _caracteristiques = 'Loading...';
 
     _authService = AuthService();
     _loadNextEvent();
@@ -67,8 +63,6 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
     });
   }
 
-  // Recupera l’últim passeig de Firestore i assigna les
-  // marques d’inici i fi a _lastWalkStart i _lastWalkEnd.
   Future<void> _loadLastWalk() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -82,7 +76,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
             .orderBy('startTime', descending: true)
             .limit(1)
             .get();
-    if (snap.docs.isEmpty) return;
+    if (!mounted || snap.docs.isEmpty) return;
     final data = snap.docs.first.data();
     setState(() {
       _lastWalkStart =
@@ -96,16 +90,16 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
     });
   }
 
-  // Assegura l’existència del calendari “PetTrack”, obté esdeveniments futurs,
-  // filtra els relacionats amb la mascota i desa el més proper a _nextEvent.
   Future<void> _loadNextEvent() async {
     final AuthClient? client = await _authService.getAuthenticatedClient();
+    if (!mounted) return;
     if (client == null) {
       setState(() => _loadingEvent = false);
       return;
     }
     _calendarService = CalendarService(client);
     _petTrackCalendarId = await _calendarService!.createPetTrackCalendar();
+    if (!mounted) return;
     if (_petTrackCalendarId == null) {
       setState(() => _loadingEvent = false);
       return;
@@ -118,6 +112,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
       end,
     );
 
+    if (!mounted) return;
     final List<gcal.Event> matched = [];
     for (final e in events) {
       final raw = e.extendedProperties?.private?['petIds'];
@@ -138,15 +133,11 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
     });
   }
 
-  // Converteix la línia de característiques separades per comes en una llista
-  // de punts amb salts de línia per a una millor llegibilitat.
   String _formatCaracteristiques(String text) {
     if (!text.contains(',')) return text;
     return text.split(',').map((c) => '• ${c.trim()}').join('\n');
   }
 
-  // Actualitza el recompte i la data de l’últim àpat tant en l’estat local
-  // com al document de la mascota a Firestore.
   void _updateFeed(bool add) {
     setState(() {
       _dailyFeedCount =
@@ -168,34 +159,32 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
         .update(updateData);
   }
 
-  // Envia una petició a Gemini amb espècie, raça, edat i sexe, i retorna
-  // 3-4 característiques clau de l’animal en una sola línia
   Future<String> _obtenirCaracteristiques() async {
     final apiKey = dotenv.env['GEMINI_API_KEY'];
-    if (apiKey == null) return 'Característiques desconegudes';
+    if (apiKey == null) return 'Unknown characteristics';
     final url = Uri.parse(
       'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=$apiKey',
     );
-    final species = pet['species'] ?? 'Desconegut';
-    final breed = pet['breed'] ?? 'Desconeguda';
-    final sex = pet['sex'] ?? 'Desconegut';
+    final species = pet['species'] ?? 'Unknown';
+    final breed = pet['breed'] ?? 'Unknown';
+    final sex = pet['sex'] ?? 'Unknown';
 
     String edat;
     if (pet['birthDate'] is Timestamp) {
       final bd = (pet['birthDate'] as Timestamp).toDate();
       final months = DateTime.now().difference(bd).inDays ~/ 30;
-      edat = '$months mesos';
+      edat = '$months months';
     } else {
-      edat = 'Desconeguda';
+      edat = 'Unknown';
     }
 
     final prompt = '''
-Ets un expert veterinari. Basant-te en la següent informació, dóna'm exclusivament 3 o 4 característiques clau de l'animal (mida, nivell d'energia, personalitat, necessitats, etc.). Escriu-les separades per comes, en una sola línia, sense cap altre text ni puntuació extra, i fes que cada característica comenci en majúscula.
-Espècie: $species
-Raça: $breed
-Edat: $edat
-Sexe: $sex
-Si no ho saps, respon exactament així: Característiques desconegudes''';
+Based on the following pet information, return only 3 or 4 key characteristics (size, energy level, personality, needs, etc.) in English. Separate them with commas on one line, without additional text or punctuation, and capitalize each characteristic.
+Species: $species
+Breed: $breed
+Age: $edat
+Sex: $sex
+If uncertain, respond exactly: Unknown characteristics''';
 
     final body = jsonEncode({
       'contents': [
@@ -220,7 +209,7 @@ Si no ho saps, respon exactament així: Característiques desconegudes''';
         if (text != null && text.trim().isNotEmpty) return text.trim();
       }
     } catch (_) {}
-    return 'Característiques desconegudes';
+    return 'Unknown characteristics';
   }
 
   @override
@@ -228,15 +217,15 @@ Si no ho saps, respon exactament així: Característiques desconegudes''';
     final screenH = MediaQuery.of(context).size.height;
     final screenW = MediaQuery.of(context).size.width;
 
-    final name = pet['name'] ?? 'Mascota';
-    final breed = pet['breed'] ?? 'Raça desconeguda';
-    final species = pet['species'] ?? 'Espècie desconeguda';
+    final name = pet['name'] ?? 'Pet';
+    final breed = pet['breed'] ?? 'Unknown breed';
+    final species = pet['species'] ?? 'Unknown species';
     final sex =
         pet['sex'] == 'M'
-            ? 'Mascle'
+            ? 'Male'
             : pet['sex'] == 'F'
-            ? 'Femella'
-            : 'Desconegut';
+            ? 'Female'
+            : 'Unknown';
 
     final bd =
         pet['birthDate'] is Timestamp
@@ -250,10 +239,10 @@ Si no ho saps, respon exactament així: Característiques desconegudes''';
               final days = duration.inDays;
               final months = (days / 30).floor();
               return days < 30
-                  ? '$days dies'
+                  ? '$days days'
                   : months < 12
-                  ? '$months mesos'
-                  : '${(months / 12).floor()} anys';
+                  ? '$months months'
+                  : '${(months / 12).floor()} years';
             }()
             : '';
 
@@ -356,7 +345,7 @@ Si no ho saps, respon exactament així: Característiques desconegudes''';
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'No hi ha esdeveniments propers',
+                                'No upcoming events',
                                 style: AppTextStyles.midText(context),
                               ),
                             ],
@@ -370,7 +359,7 @@ Si no ho saps, respon exactament així: Característiques desconegudes''';
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                _nextEvent!.summary ?? 'Esdeveniment',
+                                _nextEvent!.summary ?? 'Event',
                                 style: AppTextStyles.midText(context),
                               ),
                               const SizedBox(width: 8),
@@ -412,7 +401,7 @@ Si no ho saps, respon exactament així: Característiques desconegudes''';
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Últim passeig:',
+                        'Last walk:',
                         style: AppTextStyles.midText(context),
                       ),
                       const SizedBox(height: 4),
@@ -436,7 +425,7 @@ Si no ho saps, respon exactament així: Característiques desconegudes''';
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Característiques:",
+                    "Characteristics:",
                     style: AppTextStyles.bigText(context),
                   ),
                   const SizedBox(height: 12),

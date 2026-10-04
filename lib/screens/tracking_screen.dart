@@ -1,14 +1,10 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:pet_track/core/app_colors.dart';
 import 'package:pet_track/core/app_styles.dart';
-
-// Pantalla de seguiment en temps real d’una ruta: inicia la subscripció a la
-// localització, dibuixa la polilínia sobre Google Maps, actualitza en directe
-// les mètriques (distància, durada, ritme) i, en acabar, retorna
-// al caller les dades de la ruta perquè es desin a Firestore.
 
 class TrackingScreen extends StatefulWidget {
   final List<String> petIds;
@@ -30,9 +26,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
     _startTracking();
   }
 
-  // Inicia el seguiment: comprova serveis i permisos de localització,
-  // desa l’hora d’inici, crea l’Stream de posicions i va afegint punts
-  // a _route mentre mou la càmera perquè segueixi l’usuari.
   void _startTracking() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
@@ -46,6 +39,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
     _startTime = DateTime.now();
 
+    if (!mounted) return;
     _positionStream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.best,
@@ -62,33 +56,30 @@ class _TrackingScreenState extends State<TrackingScreen> {
     });
   }
 
-  // Gestiona el botó «Finalitza ruta»: atura l’Stream, calcula la
-  // distància total, mostra un diàleg de confirmació amb mètriques
-  // (temps i metres) i, si l’usuari accepta, retorna les dades de la
-  // ruta (temps, distància, traçat i mascotes) al widget anterior.
   Future<void> _onSavePressed() async {
     _positionStream?.cancel();
     final endTime = DateTime.now();
     final distance = await _calculateDistance();
+    if (!mounted) return;
 
     final confirm = await showDialog<bool>(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Finalitzar i desar la ruta'),
+            title: const Text('Finish and save walk'),
             content: Text(
-              'Temps: ${endTime.difference(_startTime).inMinutes} min\n'
-              'Distància: ${distance.toStringAsFixed(1)} m\n\n'
-              'Vols desar la ruta?',
+              'Time: ${endTime.difference(_startTime).inMinutes} min\n'
+              'Distance: ${distance.toStringAsFixed(1)} m\n\n'
+              'Save this walk?',
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel·la'),
+                child: const Text('Cancel'),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Desa'),
+                child: const Text('Save'),
               ),
             ],
           ),
@@ -107,13 +98,10 @@ class _TrackingScreenState extends State<TrackingScreen> {
     }
   }
 
-  // Cancel·la el seguiment immediatament tancant l’Stream de posicions.
   void _cancelTracking() {
     _positionStream?.cancel();
   }
 
-  // Calcula la distància total recorreguda sumant la distància entre
-  // cada parell consecutiu de punts a _route amb Geolocator.distanceBetween().
   Future<double> _calculateDistance() async {
     double total = 0.0;
     for (int i = 0; i < _route.length - 1; i++) {
@@ -127,26 +115,24 @@ class _TrackingScreenState extends State<TrackingScreen> {
     return total;
   }
 
-  // Mostra un diàleg per confirmar si l’usuari vol abandonar la ruta
-  // sense desar; retorna true si confirma la cancel·lació.
   Future<bool> _confirmCancel() async {
     if (!mounted) return false;
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Cancel·lar ruta'),
+            title: const Text('Cancel walk'),
             content: const Text(
-              'Estàs segur que vols cancel·lar la ruta? Es perdran les dades no desades.',
+              'Cancel this walk? Unsaved route data will be lost.',
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Torna a la ruta'),
+                child: const Text('Return to walk'),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Sí'),
+                child: const Text('Yes'),
               ),
             ],
           ),
@@ -154,10 +140,10 @@ class _TrackingScreenState extends State<TrackingScreen> {
     return confirmed ?? false;
   }
 
-  // Allibera recursos tancant l’Stream quan el widget es destrueix.
   @override
   void dispose() {
     _positionStream?.cancel();
+    _mapController?.dispose();
     super.dispose();
   }
 
@@ -219,7 +205,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                       child: Text(
-                        'Cancel·la ruta',
+                        'Cancel walk',
                         style: AppTextStyles.bigText(context).copyWith(
                           color: Colors.white,
                           fontSize: size.width * 0.04,
@@ -239,7 +225,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                       child: Text(
-                        'Finalitza ruta',
+                        'Finish walk',
                         style: AppTextStyles.bigText(context).copyWith(
                           color: Colors.white,
                           fontSize: size.width * 0.04,

@@ -1,23 +1,19 @@
-// ignore_for_file: use_build_context_synchronously
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:pet_track/core/app_colors.dart';
 import 'package:pet_track/core/app_styles.dart';
 import 'package:uuid/uuid.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
 
-// Pantalla per afegir o editar una mascota. Permet fer o seleccionar una foto,
-// identificar la raça amb Gemini, pujar la imatge a Firebase Storage i
-// desar/actualitzar les dades de la mascota a Cloud Firestore. També disposa
-// d’opció per eliminar la mascota i la seva imatge del núvol.
 class AddEditPetScreen extends StatefulWidget {
   final Map<String, dynamic>? petData;
   const AddEditPetScreen({super.key, this.petData});
@@ -35,6 +31,7 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
   final _uuid = const Uuid();
 
   DateTime? _dataNaixement;
+  // Historical Firestore species codes: gos = dog, gat = cat.
   String? _tipusAnimal = 'gos';
   String? _sexe = '?';
   int _menjarsAlDia = 4;
@@ -66,18 +63,17 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
     }
   }
 
-  // Envia la imatge a Gemini per inferir la raça i retorna la raça o el string “Raça desconeguda”.
   Future<String> _obtenirRaca(File imatge) async {
     final apiKey = dotenv.env['GEMINI_API_KEY'];
-    if (apiKey == null) return 'Raça desconeguda';
+    if (apiKey == null) return 'Unknown breed';
     final url = Uri.parse(
       'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=$apiKey',
     );
     final base64Image = base64Encode(await imatge.readAsBytes());
     const prompt = '''
-Ets un expert en animals. Identifica la raça exacta o més aproximada que puguis del gos o gat que apareix a la imatge.
-Dona'm únicament el nom, sense cap altre text ni puntuació.
-Si no ho saps, respon exactament així: Raça desconeguda''';
+Identify the exact or closest breed of the dog or cat in the image.
+Return only the breed name in English, without additional text or punctuation.
+If uncertain, respond exactly: Unknown breed''';
     final body = jsonEncode({
       'contents': [
         {
@@ -102,10 +98,9 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
         if (text != null && text.trim().isNotEmpty) return text.trim();
       }
     } catch (_) {}
-    return 'Raça desconeguda';
+    return 'Unknown breed';
   }
 
-  // Comprimeix la imatge localment per reduir el pes abans de pujar-la.
   Future<XFile> _comprimeixImatge(XFile imatgeOriginal) async {
     final imatgeComprimida = await FlutterImageCompress.compressAndGetFile(
       imatgeOriginal.path,
@@ -119,7 +114,6 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
         : imatgeOriginal;
   }
 
-  // Puja la imatge comprimida a Firebase Storage i retorna la URL pública.
   Future<String> _pujaImatgeFirebase(XFile imatge, String petId) async {
     final imatgeComprimida = await _comprimeixImatge(imatge);
     final file = File(imatgeComprimida.path);
@@ -129,9 +123,8 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
     return await snap.ref.getDownloadURL();
   }
 
-  // Gestiona tot el flux després de triar imatge: pujar-la,
-  // obtenir la raça i actualitzar l’estat amb la URL i la raça.
   Future<void> _processaImatge(XFile imatge) async {
+    if (!mounted) return;
     setState(() {
       _imatge = imatge;
       _carregantRaca = true;
@@ -144,6 +137,7 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
             : (_tempPetId ??= _uuid.v4());
     final racaF = _obtenirRaca(File(imatge.path));
     final uploadF = _pujaImatgeFirebase(XFile(imatge.path), petId);
+    // Reuse the same temporary pet ID while inference and upload run concurrently.
     final results = await Future.wait([racaF, uploadF]);
     if (!mounted) return;
     setState(() {
@@ -154,7 +148,6 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
     });
   }
 
-  // Mostra un bottom-sheet per escollir càmera o galeria i inicia la selecció d’imatge.
   void _seleccionaImatge() {
     final picker = ImagePicker();
     showModalBottomSheet(
@@ -168,7 +161,7 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
             children: [
               ListTile(
                 leading: const Icon(Icons.camera_alt),
-                title: const Text('Fer foto'),
+                title: const Text('Take a photo'),
                 onTap: () async {
                   Navigator.pop(context);
                   final imatge = await picker.pickImage(
@@ -179,7 +172,7 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
               ),
               ListTile(
                 leading: const Icon(Icons.photo_library),
-                title: const Text('Seleccionar de la galeria'),
+                title: const Text('Choose from gallery'),
                 onTap: () async {
                   Navigator.pop(context);
                   final imatge = await picker.pickImage(
@@ -193,7 +186,6 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
     );
   }
 
-  // Valida el formulari, puja imatge si cal i crea/actualitza el document de la mascota a Firestore.
   Future<void> _desaMascota() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final petId =
@@ -222,7 +214,7 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
                   const SizedBox(width: 20),
                   Expanded(
                     child: Text(
-                      'Pujant la imatge al núvol...',
+                      'Uploading image...',
                       style: AppTextStyles.midText(context),
                     ),
                   ),
@@ -254,7 +246,6 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
     Navigator.pop(context, _editant ? {...widget.petData!, ...dades} : true);
   }
 
-  // Elimina la foto de Storage i el document de la mascota a Firestore.
   Future<void> _eliminaMascota() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final id = widget.petData!['id'] as String;
@@ -273,33 +264,31 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
     if (mounted) Navigator.pop(context, {'deleted': true, 'id': id});
   }
 
-  // Mostra un diàleg de confirmació i, si s’accepta, crida _eliminaMascota().
   Future<void> _confirmaElimina() async {
     final res = await showDialog<bool>(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Eliminar mascota'),
-            content: const Text('Segur que vols eliminar aquesta mascota?'),
+            title: const Text('Delete pet'),
+            content: const Text('Are you sure you want to delete this pet?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel·lar'),
+                child: const Text('Cancel'),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
                 child: const Text(
-                  'Eliminar',
+                  'Delete',
                   style: TextStyle(color: Colors.red),
                 ),
               ),
             ],
           ),
     );
+    if (!mounted) return;
     if (res == true) _eliminaMascota();
   }
-
-  // Construeix un botó circular reutilitzable (icona + estat seleccionat).
   Widget _botoCircular({
     required IconData icona,
     required bool seleccionat,
@@ -320,6 +309,14 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _nomController.dispose();
+    _dataNaixementController.dispose();
+    _racaController.dispose();
+    super.dispose();
   }
 
   @override
@@ -346,7 +343,7 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
         appBar: AppBar(
           backgroundColor: AppColors.background,
           title: Text(
-            _editant ? 'Editar mascota' : 'Afegir mascota',
+            _editant ? 'Edit pet' : 'Add pet',
             style: AppTextStyles.titleText(context),
           ),
         ),
@@ -390,8 +387,8 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
                                 (b) => AppColors.gradient.createShader(b),
                             child: Text(
                               _imatge == null && _imageUrl == null
-                                  ? 'Afegir imatge'
-                                  : 'Imatge afegida',
+                                  ? 'Add image'
+                                  : 'Image added',
                               style: AppTextStyles.primaryText(
                                 context,
                               ).copyWith(
@@ -433,7 +430,7 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
                     children: const [
                       Icon(Icons.auto_awesome, color: AppColors.primary),
                       SizedBox(width: 8),
-                      Text('Detectant raça amb IA.'),
+                      Text('Identifying breed with AI...'),
                       SizedBox(width: 8),
                       SizedBox(
                         width: 16,
@@ -446,7 +443,7 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
                   TextField(
                     controller: _racaController,
                     decoration: const InputDecoration(
-                      labelText: 'Raça detectada',
+                      labelText: 'Identified breed',
                       suffixIcon: Icon(
                         Icons.auto_awesome,
                         color: AppColors.primary,
@@ -457,7 +454,7 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
                 ],
                 TextField(
                   controller: _nomController,
-                  decoration: const InputDecoration(labelText: 'Nom'),
+                  decoration: const InputDecoration(labelText: 'Name'),
                 ),
                 SizedBox(height: screenHeight * 0.008),
                 GestureDetector(
@@ -468,6 +465,7 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
                       firstDate: DateTime(2000),
                       lastDate: DateTime.now(),
                     );
+                    if (!mounted) return;
                     if (picked != null) {
                       setState(() {
                         _dataNaixement = picked;
@@ -480,7 +478,7 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
                     child: TextField(
                       controller: _dataNaixementController,
                       decoration: const InputDecoration(
-                        labelText: 'Data de naixement',
+                        labelText: 'Date of birth',
                       ),
                     ),
                   ),
@@ -508,7 +506,7 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
                   ],
                 ),
                 SizedBox(height: screenHeight * 0.0125),
-                Text('Sexe:', style: AppTextStyles.midText(context)),
+                Text('Sex:', style: AppTextStyles.midText(context)),
                 SizedBox(height: screenHeight * 0.0125),
                 Row(
                   children: [
@@ -538,7 +536,7 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
                   ],
                 ),
                 SizedBox(height: screenHeight * 0.0125),
-                Text('Menjars:', style: AppTextStyles.midText(context)),
+                Text('Meals:', style: AppTextStyles.midText(context)),
                 SizedBox(height: screenHeight * 0.0125),
                 Row(
                   children: [
@@ -551,14 +549,14 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
                         min: 1,
                         max: 8,
                         divisions: 7,
-                        label: '$_menjarsAlDia menjars',
+                        label: '$_menjarsAlDia meals',
                         onChanged:
                             (val) =>
                                 setState(() => _menjarsAlDia = val.toInt()),
                       ),
                     ),
                     Text(
-                      '$_menjarsAlDia menjars / dia',
+                      '$_menjarsAlDia meals / day',
                       style: AppTextStyles.tinyText(
                         context,
                       ).copyWith(fontWeight: FontWeight.w600),
@@ -582,7 +580,7 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
                         ),
                         child: Center(
                           child: Text(
-                            _editant ? 'Guardar' : 'Afegir mascota',
+                            _editant ? 'Save' : 'Add pet',
                             style: AppTextStyles.bigText(context).copyWith(
                               color: Colors.white,
                               fontSize: screenHeight * 0.03,
@@ -615,7 +613,7 @@ Si no ho saps, respon exactament així: Raça desconeguda''';
                           ),
                           child: Center(
                             child: Text(
-                              'Eliminar mascota',
+                              'Delete pet',
                               style: AppTextStyles.bigText(context).copyWith(
                                 color: Colors.white,
                                 fontSize: screenHeight * 0.03,

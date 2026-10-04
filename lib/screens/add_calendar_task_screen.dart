@@ -1,14 +1,12 @@
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
+import 'package:googleapis/calendar/v3.dart' as gcal;
+import 'package:intl/intl.dart';
 import 'package:pet_track/core/app_colors.dart';
 import 'package:pet_track/core/app_styles.dart';
-import 'package:googleapis/calendar/v3.dart' as gcal;
 import 'package:pet_track/services/calendar_service.dart';
-import 'package:intl/intl.dart';
-
-// Pantalla per crear o editar una tasca al Google Calendar lligada a una o més mascotes.
-// Inclou formulari amb títol, descripció, data, franja horària o mode de tot el dia,
-// selector de mascotes, i permet guardar-la o eliminar-la mitjançant CalendarService.
 
 class AddEditTaskScreen extends StatefulWidget {
   final DateTime? initialSelectedDay;
@@ -57,7 +55,6 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
     );
   }
 
-  // Assegura que els controladors d’hora tinguin text quan es disposa de _selectedStart/EndTime.
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -71,7 +68,6 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
     }
   }
 
-  // Mostra un DatePicker per triar la data i actualitza el controlador corresponent.
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -94,6 +90,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
         );
       },
     );
+    if (!mounted || !context.mounted) return;
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
@@ -102,7 +99,6 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
     }
   }
 
-  // Mostra un TimePicker per triar hora d’inici o fi i actualitza el camp adequat.
   Future<void> _selectTime(BuildContext context, bool isStartTime) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
@@ -125,6 +121,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
         );
       },
     );
+    if (!mounted || !context.mounted) return;
     if (picked != null) {
       setState(() {
         if (isStartTime) {
@@ -138,13 +135,11 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
     }
   }
 
-  // Valida el formulari, construeix el gcal.Event amb propietats esteses (petIds)
-  // i invoca createEvent o updateEvent; gestiona diàlegs de càrrega i toasts d’èxit/error.
   Future<void> _saveTask() async {
     if (_petTrackCalendarId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Error: ID del calendari no disponible.'),
+          content: Text('Calendar ID unavailable.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -154,7 +149,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('El titol de la tasca no pot estar buit.'),
+          content: Text('The task title cannot be empty.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -164,7 +159,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
     if (_selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Has de seleccionar una data per la tasca.'),
+          content: Text('Select a date for the task.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -177,6 +172,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
 
     if (_isAllDay) {
       newEvent.start = gcal.EventDateTime(date: _selectedDate);
+      // Google Calendar treats an all-day event end date as exclusive.
       newEvent.end = gcal.EventDateTime(
         date: _selectedDate!.add(const Duration(days: 1)),
       );
@@ -185,7 +181,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Has de seleccionar una hora d\'inici per a la tasca.',
+              'Select a start time for the task.',
             ),
             backgroundColor: Colors.red,
           ),
@@ -218,6 +214,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       }
 
       newEvent.start = gcal.EventDateTime(dateTime: startDateTime.toUtc());
+      // Google Calendar treats an all-day event end date as exclusive.
       newEvent.end = gcal.EventDateTime(dateTime: endDateTime.toUtc());
     }
 
@@ -241,7 +238,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
             const SizedBox(width: 20),
             Expanded(
               child: Text(
-                'Afegint tasca...',
+                'Adding task...',
                 style: AppTextStyles.midText(context),
               ),
             ),
@@ -257,15 +254,14 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
         newEvent,
       );
 
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
 
       if (resultEvent != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Tasca "${resultEvent.summary}" afegida con éxit.',
+              'Task "${resultEvent.summary}" added successfully.',
             ),
             backgroundColor: Colors.green,
           ),
@@ -274,23 +270,32 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Error al guardar la tasca.'),
+            content: Text('Could not save the task.'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-      print('Error al guardar la tasca: $e');
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      if (kDebugMode) debugPrint('Could not save calendar task.');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al guardar la tasca: ${e.toString()}'),
+          content: Text('Could not save the task.'),
           backgroundColor: Colors.red,
         ),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _dateController.dispose();
+    _startTimeController.dispose();
+    _endTimeController.dispose();
+    super.dispose();
   }
 
   @override
@@ -318,7 +323,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
         appBar: AppBar(
           backgroundColor: AppColors.background,
           title: Text(
-            'Afegir tasca',
+            'Add task',
             style: AppTextStyles.titleText(context),
           ),
         ),
@@ -332,14 +337,14 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                 TextField(
                   controller: _titleController,
                   decoration: const InputDecoration(
-                    labelText: 'Titol de la tasca',
+                    labelText: 'Task title',
                   ),
                 ),
                 SizedBox(height: screenHeight * 0.008),
                 TextField(
                   controller: _descriptionController,
                   decoration: const InputDecoration(
-                    labelText: 'Descripció (opcional)',
+                    labelText: 'Description (optional)',
                   ),
                   maxLines: 3,
                   keyboardType: TextInputType.multiline,
@@ -351,7 +356,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                     child: TextField(
                       controller: _dateController,
                       decoration: const InputDecoration(
-                        labelText: 'Data',
+                        labelText: 'Date',
                         suffixIcon: Icon(
                           Icons.calendar_today,
                           color: AppColors.primary,
@@ -363,7 +368,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                 SizedBox(height: screenHeight * 0.0125),
                 Row(
                   children: [
-                    Text('Tot el dia:', style: AppTextStyles.midText(context)),
+                    Text('All day:', style: AppTextStyles.midText(context)),
                     const Spacer(),
                     Switch(
                       value: _isAllDay,
@@ -400,7 +405,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                       child: TextField(
                         controller: _startTimeController,
                         decoration: const InputDecoration(
-                          labelText: 'Hora d\'inici',
+                          labelText: 'Start time',
                           suffixIcon: Icon(
                             Icons.access_time,
                             color: AppColors.primary,
@@ -416,7 +421,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                       child: TextField(
                         controller: _endTimeController,
                         decoration: const InputDecoration(
-                          labelText: 'Hora de finalització',
+                          labelText: 'End time',
                           suffixIcon: Icon(
                             Icons.access_time,
                             color: AppColors.primary,
@@ -428,13 +433,13 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                   SizedBox(height: screenHeight * 0.02),
                 ],
                 Text(
-                  'Mascotes asociades:',
+                  'Associated pets:',
                   style: AppTextStyles.midText(context),
                 ),
                 SizedBox(height: screenHeight * 0.0125),
                 widget.availablePets.isEmpty
                     ? Text(
-                        'No hay mascotas disponibles.',
+                        'No pets available.',
                         style: AppTextStyles.tinyText(
                           context,
                         ).copyWith(color: AppColors.black),
@@ -487,7 +492,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                         ),
                         child: Center(
                           child: Text(
-                            'Afegir tasca',
+                            'Add task',
                             style: AppTextStyles.bigText(context).copyWith(
                               color: Colors.white,
                               fontSize: screenHeight * 0.03,

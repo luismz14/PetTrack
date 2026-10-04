@@ -2,9 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 
-final _uuid = Uuid();
-
-// Aquest fitxer conté la lògica per gestionar la base de dades de les mascotes de l'usuari.
+final _uuid = const Uuid();
 
 FirebaseFirestore _fs([FirebaseFirestore? f]) =>
     f ?? FirebaseFirestore.instance;
@@ -16,8 +14,8 @@ CollectionReference<Map<String, dynamic>> _petsCol(
 ) => firestore.collection('users').doc(uid).collection('pets');
 
 String petImagePath(String uid, String petId) => 'users/$uid/pets/$petId.jpg';
-
-/// Afegeix una nova mascota a la base de dades.
+/// Creates a pet for the signed-in user and returns its document ID.
+/// Writes the historical `petId` field; screens also use the document ID as `id`.
 Future<String> addPet(
   Map<String, dynamic> petData, {
   String? petId,
@@ -35,8 +33,6 @@ Future<String> addPet(
   ).doc(id).set({...petData, 'petId': id, 'createdAt': now, 'updatedAt': now});
   return id;
 }
-
-// Actualitza les dades d'una mascota ja existent en la base de dades.
 Future<void> updatePet(
   String petId,
   Map<String, dynamic> data, {
@@ -51,8 +47,8 @@ Future<void> updatePet(
     user.uid,
   ).doc(petId).update({...data, 'updatedAt': FieldValue.serverTimestamp()});
 }
-
-// Retorna una llista de totes les mascotes de l'usuari.
+/// Returns pets ordered by name, with each document ID exposed as `id`.
+/// Throws if no Firebase user is signed in.
 Future<List<Map<String, dynamic>>> getPets({
   FirebaseFirestore? firestore,
   FirebaseAuth? auth,
@@ -63,8 +59,6 @@ Future<List<Map<String, dynamic>>> getPets({
   final snap = await _petsCol(fs, user.uid).orderBy('name').get();
   return snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
 }
-
-// Retorna les dades d'una mascota segons el seu ID.
 Future<Map<String, dynamic>> getPetById(
   String petId, {
   FirebaseFirestore? firestore,
@@ -77,8 +71,6 @@ Future<Map<String, dynamic>> getPetById(
   if (!doc.exists) throw StateError('Pet not found');
   return {'id': doc.id, ...doc.data()!};
 }
-
-// Elimina una mascota de la base de dades.
 Future<void> deletePet(
   String petId, {
   FirebaseFirestore? firestore,

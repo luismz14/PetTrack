@@ -3,9 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:pet_track/core/app_colors.dart';
 import 'package:pet_track/core/app_styles.dart';
 
-// Pantalla de perfil de l’usuari. Mostra l’avatar, el nom i el correu.
-// Permet tancar la sessió
-
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
   @override
@@ -14,7 +11,7 @@ class ProfileScreen extends StatelessWidget {
 
     if (user == null) {
       return const Scaffold(
-        body: Center(child: Text("No hay usuario conectado.")),
+        body: Center(child: Text("No signed-in user.")),
       );
     }
 
@@ -31,18 +28,18 @@ class ProfileScreen extends StatelessWidget {
               ),
             const SizedBox(height: 20),
             Text(
-              user.displayName ?? 'Nombre no disponible',
+              user.displayName ?? 'Name unavailable',
               style: AppTextStyles.bigText(context),
             ),
             const SizedBox(height: 10),
             Text(
-              user.email ?? 'Email no disponible',
+              user.email ?? 'Email unavailable',
               style: AppTextStyles.midText(context),
             ),
             const SizedBox(height: 10),
             if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty)
               Text(
-                'Teléfono: ${user.phoneNumber}',
+                'Phone: ${user.phoneNumber}',
                 style: AppTextStyles.midText(context),
               ),
             const SizedBox(height: 30),
@@ -68,7 +65,7 @@ class ProfileScreen extends StatelessWidget {
                   elevation: 0,
                 ),
                 child: Text(
-                  'Tancar la sessió',
+                  'Sign out',
                   style: AppTextStyles.primaryText(
                     context,
                   ).copyWith(color: Colors.white),

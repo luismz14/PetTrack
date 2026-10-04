@@ -1,5 +1,4 @@
 import java.util.Properties
-import java.io.File
 
 plugins {
     id("com.android.application")
@@ -19,7 +18,6 @@ rootProject.file("key.properties").takeIf { it.exists() }?.inputStream()?.use {
 android {
     namespace = "com.example.pet_track"
     compileSdk = flutter.compileSdkVersion
-    // ndkVersion = flutter.ndkVersion
     ndkVersion = "27.0.12077973"
 
     compileOptions {

@@ -1,20 +1,17 @@
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
+import 'package:googleapis/calendar/v3.dart' as gcal;
+import 'package:googleapis_auth/auth_io.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:pet_track/components/google_auth.dart';
 import 'package:pet_track/core/app_colors.dart';
 import 'package:pet_track/core/app_styles.dart';
 import 'package:pet_track/models/pets_db.dart';
-import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/date_symbol_data_local.dart';
-import 'package:googleapis/calendar/v3.dart' as gcal;
-import 'package:googleapis_auth/auth_io.dart';
-import 'package:pet_track/services/calendar_service.dart';
 import 'package:pet_track/screens/add_calendar_task_screen.dart';
-
-// Pantalla de calendari central de PetTrack: connecta amb Google Calendar,
-// carrega o crea el calendari “PetTrack”, llegeix els esdeveniments dins
-// del rang visible (mes/setmana) i els mostra amb el widget TableCalendar.
-// També permet afegir, editar i llistar tasques associades a mascotes.
+import 'package:pet_track/services/calendar_service.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -40,53 +37,50 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   void initState() {
     super.initState();
-    initializeDateFormatting('ca_ES', null);
+    initializeDateFormatting('en_GB', null);
     _selectedDay = _focusedDay;
     _authService = AuthService();
     _loadAllInitialData();
   }
 
-  // Després d’inicialitzar el widget, obté les mascotes de Firestore,
-  // prepara el client autenticat de Google i garanteix l’existència
-  // del calendari “PetTrack”, carregant els esdeveniments inicials.
   Future<void> _loadAllInitialData() async {
     try {
       _petsFuture = getPets();
       _availablePets = await _petsFuture!;
-      print('Mascotas cargadas: ${_availablePets.length}');
-    } catch (e) {
-      print('Error al cargar mascotas: $e');
+      if (kDebugMode) debugPrint('Pets loaded.');
+    } catch (_) {
+      if (!mounted) return;
+      if (kDebugMode) debugPrint('Could not load pets.');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al cargar las mascotas: ${e.toString()}'),
+          content: Text('Could not load pets.'),
           backgroundColor: Colors.red,
         ),
       );
     }
 
     final AuthClient? client = await _authService.getAuthenticatedClient();
+    if (!mounted) return;
     if (client != null) {
       _calendarService = CalendarService(client);
       _petTrackCalendarId = await _calendarService!.createPetTrackCalendar();
+      if (!mounted) return;
       if (_petTrackCalendarId != null) {
         await _fetchEventsForVisibleRange(_focusedDay, _calendarFormat);
       } else {
         setState(() {
           _isLoadingEvents = false;
         });
-        print('No se pudo obtener o crear el calendario PetTrack.');
+        if (kDebugMode) debugPrint('Could not initialize the PetTrack calendar.');
       }
     } else {
       setState(() {
         _isLoadingEvents = false;
       });
-      print('No se pudo obtener el cliente autenticado.');
+      if (kDebugMode) debugPrint('No authenticated Calendar client available.');
     }
   }
 
-  // Recupera esdeveniments del calendari “PetTrack” per al rang
-  // corresponent (mes complet o setmana visible), els converteix en un
-  // mapa dia→llista d’esdeveniments i actualitza l’estat de càrrega.
   Future<void> _fetchEventsForVisibleRange(
     DateTime focusedDay,
     CalendarFormat format,
@@ -146,6 +140,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         rangeEnd,
       );
 
+      if (!mounted) return;
       final Map<DateTime, List<gcal.Event>> newEventsMap = {};
       for (var event in fetchedEvents) {
         final eventDay = DateTime.utc(
@@ -166,8 +161,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _selectedEvents = _getEventsForDay(_selectedDay!);
         _isLoadingEvents = false;
       });
-    } catch (e) {
-      print('Error al obtener eventos para el rango visible: $e');
+    } catch (_) {
+      if (kDebugMode) debugPrint('Could not fetch calendar events.');
       if (mounted) {
         setState(() {
           _isLoadingEvents = false;
@@ -178,22 +173,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  // Retorna la llista d’esdeveniments associats a un dia concret ja
-  // normalitzat a UTC (any-mes-dia) a partir del mapa _events.
   List<gcal.Event> _getEventsForDay(DateTime day) {
     final normalizedDay = DateTime.utc(day.year, day.month, day.day);
     return _events[normalizedDay] ?? [];
   }
 
-  // Tradueix una llista d’IDs de mascotes en un únic string amb els seus
-  // noms, cercant-los a la col·lecció _availablePets carregada prèviament.
   String _getPetNamesFromIds(List<String> petIds) {
     if (petIds.isEmpty) return '';
     final names =
         petIds.map((id) {
           final pet = _availablePets.firstWhere(
             (p) => p['id'] == id,
-            orElse: () => {'name': 'Mascota Desconocida'},
+            orElse: () => {'name': 'Unknown pet'},
           );
           return pet['name'] as String;
         }).toList();
@@ -227,7 +218,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     _fetchEventsForVisibleRange(_focusedDay, _calendarFormat);
                   },
                   child: Text(
-                    'Mes',
+                    'Month',
                     style: AppTextStyles.midText(
                       context,
                     ).copyWith(color: Colors.white),
@@ -250,7 +241,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     _fetchEventsForVisibleRange(_focusedDay, _calendarFormat);
                   },
                   child: Text(
-                    'Setmana',
+                    'Week',
                     style: AppTextStyles.midText(
                       context,
                     ).copyWith(color: Colors.white),
@@ -263,7 +254,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             firstDay: DateTime.utc(2010, 1, 1),
             lastDay: DateTime.utc(2030, 12, 31),
             focusedDay: _focusedDay,
-            locale: 'ca_ES',
+            locale: 'en_GB',
             selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
             onDaySelected: (selectedDay, focusedDay) {
               setState(() {
@@ -324,7 +315,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     : _selectedEvents.isEmpty
                     ? Center(
                       child: Text(
-                        'No hi ha res agendat per aquest dia.',
+                        'Nothing scheduled for this day.',
                         style: AppTextStyles.midText(
                           context,
                         ).copyWith(color: AppColors.black),
@@ -355,10 +346,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 associatedPetIds,
                               );
                             }
-                          } catch (e) {
-                            print(
-                              'Error al decodificar petIds para mostrar: $e',
-                            );
+                          } catch (_) {
+                            if (kDebugMode) debugPrint('Could not decode event pet identifiers.');
                           }
                         }
 
@@ -374,7 +363,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  event.summary ?? 'Sin título',
+                                  event.summary ?? 'Untitled',
                                   style: AppTextStyles.midText(
                                     context,
                                   ).copyWith(
@@ -397,7 +386,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4.0),
                                     child: Text(
-                                      'Inici: ${eventStartTime.toLocal().toString().substring(0, 16)}',
+                                      'Start: ${eventStartTime.toLocal().toString().substring(0, 16)}',
                                       style: AppTextStyles.tinyText(
                                         context,
                                       ).copyWith(color: AppColors.black),
@@ -408,7 +397,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4.0),
                                     child: Text(
-                                      'Fi: ${eventEndTime.toLocal().toString().substring(0, 16)}',
+                                      'End: ${eventEndTime.toLocal().toString().substring(0, 16)}',
                                       style: AppTextStyles.tinyText(
                                         context,
                                       ).copyWith(color: AppColors.black),
@@ -419,7 +408,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4.0),
                                     child: Text(
-                                      'Lloc: ${event.location!}',
+                                      'Location: ${event.location!}',
                                       style: AppTextStyles.tinyText(
                                         context,
                                       ).copyWith(color: AppColors.black),
@@ -429,7 +418,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   Padding(
                                     padding: const EdgeInsets.only(top: 8.0),
                                     child: Text(
-                                      'Mascotas: $associatedPetNames',
+                                      'Pets: $associatedPetNames',
                                       style: AppTextStyles.tinyText(
                                         context,
                                       ).copyWith(
@@ -453,7 +442,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
-                  'Servicio de calendario no disponible. Intenta de nuevo más tarde.',
+                  'Calendar service unavailable. Try again later.',
                 ),
                 backgroundColor: Colors.red,
               ),
@@ -480,6 +469,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           );
 
+          if (!mounted) return;
           if (result == true) {
             _fetchEventsForVisibleRange(_focusedDay, _calendarFormat);
           }
